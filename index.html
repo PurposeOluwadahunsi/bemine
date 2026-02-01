@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Create a Valentine Link</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-a:#ffdce0; --bg-b:#ffe7f1; --accent:#ff4f74; --muted:#5a3a45;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%; margin:0; font-family:'Nunito',system-ui,Arial;}
+  body{
+    background:linear-gradient(160deg,var(--bg-a),var(--bg-b));
+    display:flex;align-items:center;justify-content:center;
+    padding:18px; -webkit-font-smoothing:antialiased;
+  }
+  main{width:100%;max-width:920px; display:flex;flex-direction:column;align-items:center; gap:18px; padding:6vh 6vw;}
+  h1{margin:0;font-size:clamp(20px,6vw,32px);color:var(--accent);font-weight:900;text-align:center}
+  p.lead{margin:0;color:var(--muted);text-align:center; font-weight:700}
+  .cta{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8vh}
+  a.button{
+    background:linear-gradient(180deg,var(--accent),#ff2260);
+    color:white;padding:14px 20px;border-radius:12px;font-weight:900;text-decoration:none;
+    box-shadow:0 10px 26px rgba(255,34,96,0.14);
+  }
+  a.secondary{
+    padding:12px 16px;border-radius:12px;text-decoration:none;background:rgba(255,255,255,0.7);color:var(--muted);font-weight:800;
+  }
+  footer{position:fixed;left:0;right:0;bottom:10px;text-align:center;color:#8a5a6a;font-size:13px}
+  @media (max-width:520px){ main{padding:8vh 4vw;} h1{font-size:22px} }
+</style>
+</head>
+<body>
+<main>
+  <h1>Create a link for your Valentine 💌</h1>
+  <p class="lead">Make a sweet personalized link, send it, and track if they said <strong>YES</strong> 💖</p>
+
+  <div class="cta">
+    <a class="button" href="create.html">Create link</a>
+  </div>
+</main>
+
+<footer>Made with ❤️ — shareable, and sweet</footer>
+</body>
+</html>

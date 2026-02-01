@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Will you be my Valentine?</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;600;800&display=swap" rel="stylesheet">
+
+<!-- correct Supabase v2 CDN -->
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  :root{
+    --bg-a:#ffeef4; --bg-b:#fff6f9;
+    --accent:#ff3b6b; --accent-2:#ff6b8a; --muted:#6b3943;
+  }
+  * { box-sizing: border-box; }
+  html,body { height:100%; margin:0; font-family:'Nunito',system-ui,Arial; }
+  body {
+    background: linear-gradient(160deg,var(--bg-a),var(--bg-b));
+    display:flex; align-items:center; justify-content:center; padding:10px;
+  }
+
+  .stage { width:100%; max-width:920px; padding:6vh 6vw; display:flex; flex-direction:column; align-items:center; gap:12px; }
+  h1 { margin:0; color:var(--accent); font-size:clamp(20px,7vw,34px); font-weight:900; text-align:center; }
+  .subtitle { color:var(--muted); font-weight:800; text-align:center; }
+  .message { margin-top:6px; font-weight:800; color:#7a394a; text-align:center; min-height:28px; }
+  .btn-area { width:100%; height:260px; position:relative; max-width:560px; }
+  button { position:absolute; border:0; outline:0; border-radius:999px; padding:12px 20px; font-weight:900; cursor:pointer; touch-action:manipulation; }
+  .yes { left:50%; top:40%; transform:translate(-50%,-50%) scale(1); background:linear-gradient(180deg,var(--accent-2),var(--accent)); color:white; min-width:140px; box-shadow:0 12px 30px rgba(255,59,107,0.16); }
+  .no  { left:50%; top:66%; transform:translate(-50%,-50%) scale(1); background:transparent; border:2px solid rgba(255,59,107,0.18); color:var(--accent); min-width:120px; }
+  .wiggle { animation: wiggle 320ms ease; }
+  @keyframes wiggle { 0%{transform:translate(-50%,-50%) rotate(0)}25%{transform:translate(-50%,-50%) rotate(-8deg)}50%{transform:translate(-50%,-50%) rotate(8deg)}75%{transform:translate(-50%,-50%) rotate(-6deg)}100%{transform:translate(-50%,-50%) rotate(0)} }
+
+  .finalOverlay {
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:14px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,255,255,0.84));
+    opacity:0; pointer-events:none; transition: opacity 420ms, transform 420ms; transform: scale(.98); z-index:50; padding:10px;
+  }
+  .finalOverlay.show { opacity:1; pointer-events:auto; transform: scale(1); }
+  .finalTitle { font-size:clamp(20px,6vw,32px); color:#b60b35; font-weight:900; text-align:center; }
+  .finalNote { max-width:86%; text-align:center; color:#6a2b3f; font-weight:700; white-space:pre-wrap; }
+  .smallActions { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .copybtn { padding:10px 12px; border-radius:10px; background:rgba(255,255,255,0.85); font-weight:800; border:1px solid rgba(160,80,100,0.06); cursor:pointer; }
+
+  .heart { position:fixed; width:18px; height:18px; pointer-events:none; z-index:9999; will-change:transform,opacity; }
+
+  @media (max-width:520px) {
+    .btn-area { height:300px }
+    .yes { min-width:150px }
+    .no { min-width:140px }
+  }
+</style>
+</head>
+
+<body>
+  <div class="stage">
+    <h1 id="title">Will you be my Valentine?</h1>
+    <div id="subtitle" class="subtitle">Tap the buttons below</div>
+    <div id="message" class="message">Choose carefully 😉</div>
+
+    <div class="btn-area" id="btnArea" aria-hidden="false">
+      <button id="yesBtn" class="yes" aria-label="Yes">YES 💖</button>
+      <button id="noBtn" class="no" aria-label="No">NO</button>
+    </div>
+  </div>
+
+  <div class="finalOverlay" id="final" aria-hidden="true">
+    <div class="finalTitle" id="finalTitle">You said YES!</div>
+    <div class="finalNote" id="finalNote">Love note goes here</div>
+    <div class="smallActions">
+      <button id="copyNote" class="copybtn">Copy note</button>
+      <button id="openCreator" class="copybtn"></button>
+    </div>
+  </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // ----------------- Supabase config (already from your project) -----------------
+  const SUPABASE_URL = "https://cziobwtgiqsyupkjuyfv.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6aW9id3RnaXFzeXVwa2p1eWZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NDQyMzcsImV4cCI6MjA4NTUyMDIzN30._u-sC1IKGQlzbgTUuWQ-ldHjy8crD5U7hc6gYgcqGEs";
+  // --------------------------------------------------------------------------------
+
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // elements
+  const yesBtn = document.getElementById('yesBtn');
+  const noBtn  = document.getElementById('noBtn');
+  const messageEl = document.getElementById('message');
+  const titleEl = document.getElementById('title');
+  const finalEl = document.getElementById('final');
+  const finalTitle = document.getElementById('finalTitle');
+  const finalNote = document.getElementById('finalNote');
+  const copyNoteBtn = document.getElementById('copyNote');
+  const openCreatorBtn = document.getElementById('openCreator');
+  const btnArea = document.getElementById('btnArea');
+
+  // state
+  let noCount = 0;
+  const NO_THRESHOLD = 5; // after 5 NO clicks we submit "no"
+  let row = null;
+  const idParam = new URLSearchParams(location.search).get('id');
+
+  if (!idParam) {
+    alert('Invalid link. No id provided.');
+    document.body.innerHTML = '<div style="padding:20px;color:#7a3b4f">Invalid or missing id.</div>';
+    return;
+  }
+
+  // load row
+  (async function loadRow() {
+    try {
+      const { data, error } = await supabaseClient
+        .from('valentine_links')
+        .select('*')
+        .eq('id', idParam)
+        .single();
+
+      if (error) throw error;
+      row = data;
+      // personalize
+      titleEl.textContent = `Hey ${row.val_name}, will you be my Valentine?`;
+      const who = row.creator_name ? `From ${row.creator_name}` : '';
+      document.getElementById('subtitle').textContent = who;
+      messageEl.textContent = 'Tap on YES or NO';
+
+      // if already answered, show final
+      if (row.status && row.status !== 'pending') {
+        showFinal(row.status === 'yes');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Could not load the Valentine data. Check your link or Supabase keys/policies.');
+    }
+  })();
+
+  // helper clamp
+  const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+
+  // random move for NO
+  function moveNoRandom() {
+    const wrap = btnArea.getBoundingClientRect();
+    const btnRect = noBtn.getBoundingClientRect();
+    const padding = 6;
+    const maxLeft = Math.max(0, wrap.width - btnRect.width - padding);
+    const maxTop  = Math.max(0, wrap.height - btnRect.height - padding);
+    const left = Math.random() * maxLeft + padding;
+    const top  = Math.random() * maxTop + padding;
+    const leftPct = (left + btnRect.width/2) / wrap.width * 100;
+    const topPct  = (top + btnRect.height/2) / wrap.height * 100;
+    noBtn.style.left = leftPct + '%';
+    noBtn.style.top  = topPct + '%';
+    noBtn.classList.add('wiggle');
+    setTimeout(()=> noBtn.classList.remove('wiggle'), 320);
+  }
+
+  // NO click — playful only until threshold
+  noBtn.addEventListener('click', async () => {
+    // Increase count & move
+    noCount = (noCount || 0) + 1;
+    moveNoRandom();
+
+    // messages cycle
+    const msgs = [
+      "Please pokkie... ",
+      "Come on... don't be mean!",
+      "Aww, think again? ",
+      "You sure?",
+      "Not even a little maybe? ",
+      "You’re breaking my heart!"
+    ];
+    messageEl.textContent = msgs[Math.min(noCount-1, msgs.length-1)];
+
+    // small cooldown after many tries (just UX)
+    if (noCount > 6) {
+      noBtn.disabled = true; noBtn.style.opacity = "0.6";
+      setTimeout(()=> { noBtn.disabled = false; noBtn.style.opacity = "1"; }, 420);
+    }
+
+    // If user is persistent and hits NO_THRESHOLD, submit 'no'
+    if (noCount >= NO_THRESHOLD && row && row.status === 'pending') {
+      try {
+        const { data, error } = await supabaseClient
+          .from('valentine_links')
+          .update({ status: 'no', responded_at: new Date().toISOString() })
+          .eq('id', idParam)
+          .select()
+          .single();
+        if (!error && data) row = data;
+      } catch (err) {
+        console.warn('Failed to record NO:', err);
+      }
+      showFinal(false);
+    }
+  });
+
+  // dodge on hover for desktop
+  noBtn.addEventListener('mouseenter', (e) => {
+    if (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) return;
+    if (Math.random() > 0.4) moveNoRandom();
+  });
+
+  // YES click -> submit yes (only once) and show celebration
+  yesBtn.addEventListener('click', async () => {
+    if (!row) return;
+    try {
+      if (row.status === 'pending') {
+        const { data, error } = await supabaseClient
+          .from('valentine_links')
+          .update({ status: 'yes', responded_at: new Date().toISOString() })
+          .eq('id', idParam)
+          .select()
+          .single();
+        if (!error && data) row = data;
+      }
+    } catch (err) {
+      console.warn('Failed to record YES:', err);
+    }
+    showFinal(true);
+  });
+
+  // show final overlay
+  function showFinal(accepted) {
+    finalEl.classList.add('show');
+    finalEl.setAttribute('aria-hidden','false');
+    if (accepted) {
+      finalTitle.textContent = "You said YES! 💖";
+      finalNote.textContent = (row && row.response_message) ? row.response_message : "You said yes — thank you!";
+      playChime();
+      makeHearts(28);
+    } else {
+      finalTitle.textContent = "You said NO";
+      finalNote.textContent = "Thanks for being honest.";
+    }
+    // creator link action
+    const base = location.origin + location.pathname.replace(/\/[^/]*$/, '/');
+    openCreatorBtn.onclick = () => location.href = `${base}creator.html?id=${idParam}`;
+  }
+
+  // copy note button
+  copyNoteBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(finalNote.textContent || '');
+      copyNoteBtn.textContent = 'Copied';
+      setTimeout(()=> copyNoteBtn.textContent = 'Copy note', 1200);
+    } catch {
+      copyNoteBtn.textContent = 'Failed';
+      setTimeout(()=> copyNoteBtn.textContent = 'Copy note', 1200);
+    }
+  });
+
+  // HEARTS + CHIME
+  function makeHearts(count=18) {
+    const colors = ['#ff6b8a','#ff3b6b','#ff9fb2','#ffd2da','#ff7aa5'];
+    for (let i=0;i<count;i++){
+      const el = document.createElement('div'); el.className='heart';
+      const left = Math.random()*100; const size = 12 + Math.random()*28;
+      el.style.left = left + 'vw'; el.style.bottom = '-20px'; el.style.width = size+'px'; el.style.height = size+'px';
+      el.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="${colors[Math.floor(Math.random()*colors.length)]}" d="M12 21s-7.5-4.35-10-8.27C-0.4 6.63 4 2 7.5 4.5 9.1 5.6 10 8.2 12 9c2-0.8 2.9-3.4 4.5-4.5 3.5-2.5 7.9 2.1 5.5 8.23C19.5 16.65 12 21 12 21z"/></svg>`;
+      document.body.appendChild(el);
+      const dur = 1600 + Math.random()*2600;
+      const tx = (-50 + Math.random()*100);
+      const rot = (-200 + Math.random()*400);
+      const anim = el.animate([
+        { transform: `translateY(0) translateX(0) rotate(0)`, opacity:1 },
+        { transform: `translateY(-${160 + Math.random()*260}px) translateX(${tx}px) rotate(${rot}deg)`, opacity:0 }
+      ], { duration: dur, easing:'cubic-bezier(.17,.67,.28,1)', delay: Math.random()*240 });
+      anim.onfinish = () => el.remove();
+    }
+  }
+
+  // simple WebAudio chime
+  let audioCtx = null;
+  function playChime(){
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = audioCtx; const now = ctx.currentTime;
+      const master = ctx.createGain(); master.connect(ctx.destination);
+      master.gain.setValueAtTime(0.0001, now); master.gain.exponentialRampToValueAtTime(0.9, now+0.02);
+      const freqs = [660,880,990];
+      freqs.forEach((f,i)=>{
+        const o = ctx.createOscillator(); const g = ctx.createGain();
+        o.type='sine'; o.frequency.value = f; o.connect(g); g.connect(master);
+        const t = now + i*0.08;
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.6, t+0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t+0.36);
+        o.start(t); o.stop(t+0.36);
+      });
+      master.gain.exponentialRampToValueAtTime(0.0001, now+1.2);
+    } catch (err) { console.warn('Audio error', err); }
+  }
+
+  // keyboard support (y/n)
+  document.addEventListener('keydown', (e) => {
+    if (finalEl.classList.contains('show')) return;
+    if (e.key.toLowerCase() === 'y') yesBtn.click();
+    if (e.key.toLowerCase() === 'n') noBtn.click();
+  });
+
+  // initial positions
+  (function initPositions(){
+    yesBtn.style.left='50%'; yesBtn.style.top='40%'; yesBtn.style.transform='translate(-50%,-50%)';
+    noBtn.style.left='50%'; noBtn.style.top='66%'; noBtn.style.transform='translate(-50%,-50%)';
+  })();
+
+});
+</script>
+</body>
+</html>

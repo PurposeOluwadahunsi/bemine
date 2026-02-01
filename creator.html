@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Creator Status</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;600;800&display=swap" rel="stylesheet">
+
+<!-- ✅ Correct Supabase CDN (NO /dist/, NO version lock) -->
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  :root{
+    --bg-a:#fff7f8;
+    --bg-b:#fff0f3;
+    --accent:#b2224a;
+    --muted:#6a3b44
+  }
+  *{box-sizing:border-box}
+  html,body{
+    height:100%;
+    margin:0;
+    font-family:'Nunito',system-ui,Arial;
+  }
+  body{
+    background:linear-gradient(160deg,var(--bg-a),var(--bg-b));
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:18px
+  }
+  .wrap{width:100%;max-width:920px;padding:6vh 6vw}
+  h1{margin:0;color:var(--accent);font-size:clamp(20px,6vw,32px);font-weight:900}
+  .card{
+    margin-top:18px;
+    padding:14px;
+    border-radius:12px;
+    background:rgba(255,255,255,0.9);
+    box-shadow:0 8px 26px rgba(0,0,0,0.05)
+  }
+  .row{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    align-items:center;
+    flex-wrap:wrap
+  }
+  .muted{color:var(--muted);font-weight:800}
+  .status{font-weight:900;color:#b22a53}
+  .green{color:#0b8a4f}
+  .actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .copybtn{
+    padding:8px 10px;
+    border-radius:10px;
+    background:rgba(255,255,255,0.9);
+    font-weight:800;
+    border:1px solid rgba(160,80,100,0.06);
+    cursor:pointer
+  }
+  @media (max-width:520px){
+    .wrap{padding:8vh 4vw}
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+  <h1>Link status</h1>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <div class="muted">Creator</div>
+        <div id="creatorName" style="font-weight:900">—</div>
+      </div>
+      <div>
+        <div class="muted">Valentine</div>
+        <div id="valName" style="font-weight:900">—</div>
+      </div>
+      <div>
+        <div class="muted">Status</div>
+        <div id="status" class="status">PENDING</div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <div class="muted">Created at: <span id="createdAt">—</span></div>
+      <div class="muted" style="margin-top:6px">
+        Responded at: <span id="respondedAt">—</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="openVal" class="copybtn">Open Valentine page</button>
+      <button id="copyLink" class="copybtn">Copy link</button>
+      <button id="refresh" class="copybtn">Refresh</button>
+    </div>
+
+    <div style="margin-top:10px;color:#6a3b4f;font-weight:700">
+      This page auto-refreshes every 4s while open.
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  // ====== SUPABASE CONFIG ======
+  const SUPABASE_URL = "https://cziobwtgiqsyupkjuyfv.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6aW9id3RnaXFzeXVwa2p1eWZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NDQyMzcsImV4cCI6MjA4NTUyMDIzN30._u-sC1IKGQlzbgTUuWQ-ldHjy8crD5U7hc6gYgcqGEs";
+  // ============================
+
+  const supabaseClient = supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
+
+  const id = new URLSearchParams(window.location.search).get("id");
+  if (!id) {
+    document.body.innerHTML = "<h2 style='padding:20px'>Missing link ID</h2>";
+    return;
+  }
+
+  const creatorNameEl = document.getElementById("creatorName");
+  const valNameEl = document.getElementById("valName");
+  const statusEl = document.getElementById("status");
+  const createdAtEl = document.getElementById("createdAt");
+  const respondedAtEl = document.getElementById("respondedAt");
+  const openValBtn = document.getElementById("openVal");
+  const copyLinkBtn = document.getElementById("copyLink");
+  const refreshBtn = document.getElementById("refresh");
+
+  async function fetchRow() {
+    const { data, error } = await supabaseClient
+      .from("valentine_links")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    creatorNameEl.textContent = data.creator_name || "—";
+    valNameEl.textContent = data.val_name || "—";
+
+    statusEl.textContent = (data.status || "pending").toUpperCase();
+    statusEl.className = data.status === "yes" ? "status green" : "status";
+
+    createdAtEl.textContent = new Date(data.created_at).toLocaleString();
+    respondedAtEl.textContent = data.responded_at
+      ? new Date(data.responded_at).toLocaleString()
+      : "—";
+
+    const base = location.origin + location.pathname.replace(/\/[^/]*$/, "/");
+    const valUrl = `${base}val.html?id=${id}`;
+
+    openValBtn.onclick = () => window.open(valUrl, "_blank");
+    copyLinkBtn.onclick = async () => {
+      await navigator.clipboard.writeText(valUrl);
+      copyLinkBtn.textContent = "Copied!";
+      setTimeout(() => copyLinkBtn.textContent = "Copy link", 1200);
+    };
+  }
+
+  fetchRow();
+  const poll = setInterval(fetchRow, 4000);
+  refreshBtn.onclick = fetchRow;
+
+  window.addEventListener("beforeunload", () => clearInterval(poll));
+});
+</script>
+</body>
+</html>

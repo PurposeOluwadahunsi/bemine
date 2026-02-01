@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Create Valentine Link</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;600;800&display=swap" rel="stylesheet">
+
+<!-- correct Supabase CDN for v2 -->
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  :root{--bg-a:#ffeef2;--bg-b:#fff7f9;--accent:#ff3466;--muted:#6a3b44}
+  *{box-sizing:border-box} html,body{height:100%;margin:0;font-family:'Nunito',system-ui,Arial;}
+  body{background:linear-gradient(160deg,var(--bg-a),var(--bg-b));display:flex;align-items:center;justify-content:center;padding:18px;}
+  .wrap{width:100%;max-width:880px;padding:6vh 6vw;}
+  h1{margin:0;color:var(--accent);font-size:clamp(20px,6vw,32px);font-weight:900}
+  form{margin-top:18px;display:flex;flex-direction:column;gap:12px}
+  input{padding:12px 14px;border-radius:10px;border:1px solid rgba(100,60,70,0.08);font-size:15px}
+  textarea{padding:12px;border-radius:10px;border:1px solid rgba(100,60,70,0.08);min-height:110px;resize:none}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  button{background:linear-gradient(180deg,var(--accent),#ff174f);color:white;padding:12px 16px;border:0;border-radius:12px;font-weight:900;cursor:pointer}
+  .result{margin-top:12px;padding:12px;border-radius:12px;background:rgba(255,255,255,0.7);box-shadow:0 6px 18px rgba(0,0,0,0.04)}
+  .muted{color:var(--muted);font-weight:700}
+  .linkbox{word-break:break-all;font-weight:900;color:#b22a53}
+  .actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+  .copybtn{padding:10px 12px;border-radius:10px;background:rgba(255,255,255,0.7);font-weight:800;border:1px solid rgba(150,80,100,0.06); cursor:pointer}
+  @media (max-width:520px){ .wrap{padding:8vh 4vw} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Create a shareable Valentine link</h1>
+  <p class="muted">Enter names, we'll craft a sweet note and give you the link to send.</p>
+
+  <form id="createForm" onsubmit="return false;">
+    <input id="creatorName" placeholder="Your name (e.g. Alex)" maxlength="60" required />
+    <input id="valName" placeholder="Your Valentine's name (e.g. Taylor)" maxlength="60" required />
+
+    <label for="customNote" class="muted" style="margin-top:6px;font-size:13px">Enter a love note (or leave default)</label>
+    <textarea id="customNote" maxlength="280"></textarea>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <button id="genBtn">Generate link</button>
+      <button id="previewBtn" type="button" class="copybtn" style="color: #6a2b3f;">Preview note</button>
+    </div>
+  </form>
+
+  <div id="result" class="result" style="display:none;">
+    <div style="font-size:14px;color:#6a2b3f">Share this link with your Valentine (copy or open):</div>
+    <div class="linkbox" id="shareLink"></div>
+    <div class="actions">
+      <button id="copyLinkBtn" class="copybtn" style="color: #6a2b3f;">Copy link</button>
+      <a id="openValBtn" class="copybtn" target="_blank" rel="noopener" style="text-decoration: none; color:#6a2b3f">Open as Valentine</a>
+      <a id="openCreatorBtn" class="copybtn" target="_blank" rel="noopener" style="text-decoration: none; color:#6a2b3f">Open Creator Status</a>
+    </div>
+    <div style="margin-top:10px;font-size:13px;color:#7a4a57">Tip: share via WhatsApp or DM, it fits nicely.</div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // ====== CONFIG: replace with your values ======
+  const SUPABASE_URL = "https://cziobwtgiqsyupkjuyfv.supabase.co"; // <-- replace
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6aW9id3RnaXFzeXVwa2p1eWZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NDQyMzcsImV4cCI6MjA4NTUyMDIzN30._u-sC1IKGQlzbgTUuWQ-ldHjy8crD5U7hc6gYgcqGEs"; // <-- replace
+  // =============================================
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const form = document.getElementById('createForm');
+  const creatorNameEl = document.getElementById('creatorName');
+  const valNameEl = document.getElementById('valName');
+  const customNoteEl = document.getElementById('customNote');
+  const genBtn = document.getElementById('genBtn');
+  const resultEl = document.getElementById('result');
+  const shareLinkEl = document.getElementById('shareLink');
+  const copyLinkBtn = document.getElementById('copyLinkBtn');
+  const openValBtn = document.getElementById('openValBtn');
+  const openCreatorBtn = document.getElementById('openCreatorBtn');
+  const previewBtn = document.getElementById('previewBtn');
+
+  // default sweet love note template
+  function defaultNote(creator, val) {
+    return `Dear ${val},\n\nFrom the moment you came into my life, the little things felt warmer and brighter. Thank Youuuu!?\n\n— ${creator}`;
+  }
+
+  previewBtn.addEventListener('click', () => {
+    const note = customNoteEl.value.trim() || defaultNote(creatorNameEl.value || "Someone", valNameEl.value || "You");
+    alert(note);
+  });
+
+  genBtn.addEventListener('click', async () => {
+    const creator = creatorNameEl.value.trim();
+    const val = valNameEl.value.trim();
+    if (!creator || !val) { alert('Please enter both names.'); return; }
+
+    genBtn.disabled = true;
+    genBtn.textContent = 'Generating...';
+
+    // compose note
+    const noteText = customNoteEl.value.trim() || defaultNote(creator, val);
+
+    // insert into supabase
+    try {
+      const { data, error } = await supabaseClient
+        .from('valentine_links')
+        .insert([{ creator_name: creator, val_name: val, response_message: noteText }])
+        .select('id')
+        .single();
+
+      if (error) throw error;
+
+      const id = data.id;
+      // construct links (assumes files hosted at same folder)
+      const base = location.origin + location.pathname.replace(/\/[^/]*$/, '/'); // folder base
+      const valUrl = `${base}val.html?id=${id}`;
+      const creatorUrl = `${base}creator.html?id=${id}`;
+
+      shareLinkEl.textContent = valUrl;
+      openValBtn.href = valUrl;
+      openCreatorBtn.href = creatorUrl;
+      resultEl.style.display = 'block';
+
+    } catch (err) {
+      console.error(err);
+      alert('Failed to create link. Check your Supabase keys and that policies allow anon INSERT.');
+    } finally {
+      genBtn.disabled = false;
+      genBtn.textContent = 'Generate link';
+    }
+  });
+
+  copyLinkBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(shareLinkEl.textContent);
+      copyLinkBtn.textContent = 'Copied';
+      setTimeout(()=> copyLinkBtn.textContent = 'Copy link', 1200);
+    } catch {
+      copyLinkBtn.textContent = 'Failed';
+      setTimeout(()=> copyLinkBtn.textContent = 'Copy link', 1200);
+    }
+  });
+});
+</script>
+</body>
+</html>
